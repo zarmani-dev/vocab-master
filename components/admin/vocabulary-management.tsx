@@ -1,8 +1,14 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -11,28 +17,47 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Trash2, Wand2, Volume2, Eye } from "lucide-react"
-import { motion } from "framer-motion"
-import { supabase, type Vocabulary, type User } from "@/lib/supabase"
-import { generateAIExamples, generatePronunciation } from "@/lib/ai-service"
-import { useToast } from "@/components/ui/use-toast"
-import { VocabularyPreview } from "./vocabulary-preview"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Plus, Edit, Trash2, Wand2, Volume2, Eye } from "lucide-react";
+import { motion } from "framer-motion";
+import { supabase, type Vocabulary, type User } from "@/lib/supabase";
+import {
+  generateAIExamples,
+  generatePronunciation,
+  generateVocabularyWithAI,
+} from "@/lib/ai-service";
+import { useToast } from "@/components/ui/use-toast";
+import { VocabularyPreview } from "./vocabulary-preview";
 
 export function VocabularyManagement() {
-  const [vocabulary, setVocabulary] = useState<Vocabulary[]>([])
-  const [users, setUsers] = useState<User[]>([])
-  const [isAddVocabOpen, setIsAddVocabOpen] = useState(false)
-  const [isGenerateOpen, setIsGenerateOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isGeneratingExamples, setIsGeneratingExamples] = useState(false)
-  const [isGeneratingPronunciation, setIsGeneratingPronunciation] = useState(false)
-  const [previewVocab, setPreviewVocab] = useState<Vocabulary | null>(null)
+  const [vocabulary, setVocabulary] = useState<Vocabulary[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isAddVocabOpen, setIsAddVocabOpen] = useState(false);
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingVocabulary, setIsGeneratingVocabulary] = useState(false);
+  const [isGeneratingExamples, setIsGeneratingExamples] = useState(false);
+  const [isGeneratingPronunciation, setIsGeneratingPronunciation] =
+    useState(false);
+  const [previewVocab, setPreviewVocab] = useState<Vocabulary | null>(null);
   const [newVocab, setNewVocab] = useState({
     word: "",
     cefr: "B2",
@@ -42,72 +67,78 @@ export function VocabularyManagement() {
     examples: [""],
     audio_url: "",
     assigned_to: [],
-  })
+  });
   const [generateParams, setGenerateParams] = useState({
     level: "B2",
     count: 5,
     topic: "",
-  })
-  const { toast } = useToast()
+  });
+  const { toast } = useToast();
 
   useEffect(() => {
-    fetchVocabulary()
-    fetchUsers()
-  }, [])
+    fetchVocabulary();
+    fetchUsers();
+  }, []);
 
   const fetchVocabulary = async () => {
     try {
-      const { data, error } = await supabase.from("vocabulary").select("*").order("created_at", { ascending: false })
+      const { data, error } = await supabase
+        .from("vocabulary")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      if (error) throw error
+      if (error) throw error;
 
-      setVocabulary(data || [])
+      setVocabulary(data || []);
     } catch (error) {
-      console.error("Error fetching vocabulary:", error)
+      console.error("Error fetching vocabulary:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to load vocabulary",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase.from("users").select("id, username, name").eq("role", "user")
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, username, name")
+        .eq("role", "user");
 
-      if (error) throw error
+      if (error) throw error;
 
-      setUsers(data || [])
+      setUsers(data || []);
     } catch (error) {
-      console.error("Error fetching users:", error)
+      console.error("Error fetching users:", error);
     }
-  }
+  };
 
   const handleAddExample = () => {
     setNewVocab({
       ...newVocab,
       examples: [...newVocab.examples, ""],
-    })
-  }
+    });
+  };
 
   const handleExampleChange = (index: number, value: string) => {
-    const updatedExamples = [...newVocab.examples]
-    updatedExamples[index] = value
+    const updatedExamples = [...newVocab.examples];
+    updatedExamples[index] = value;
     setNewVocab({
       ...newVocab,
       examples: updatedExamples,
-    })
-  }
+    });
+  };
 
   const handleAddVocab = async () => {
     try {
       // Get the current user ID from localStorage
-      const userString = localStorage.getItem("user")
-      if (!userString) throw new Error("User not found")
-      const user = JSON.parse(userString)
+      const userString = localStorage.getItem("user");
+      if (!userString) throw new Error("User not found");
+      const user = JSON.parse(userString);
 
       const { data, error } = await supabase
         .from("vocabulary")
@@ -123,11 +154,11 @@ export function VocabularyManagement() {
             created_by: user.id,
           },
         ])
-        .select()
+        .select();
 
-      if (error) throw error
+      if (error) throw error;
 
-      setVocabulary([data[0], ...vocabulary])
+      setVocabulary([data[0], ...vocabulary]);
       setNewVocab({
         word: "",
         cefr: "B2",
@@ -137,170 +168,171 @@ export function VocabularyManagement() {
         examples: [""],
         audio_url: "",
         assigned_to: [],
-      })
-      setIsAddVocabOpen(false)
+      });
+      setIsAddVocabOpen(false);
 
       toast({
         title: "Success",
         description: "Vocabulary added successfully",
-      })
+      });
     } catch (error) {
-      console.error("Error adding vocabulary:", error)
+      console.error("Error adding vocabulary:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to add vocabulary",
-      })
+      });
     }
-  }
+  };
 
   const handleDeleteVocab = async (id: number) => {
     try {
-      const { error } = await supabase.from("vocabulary").delete().eq("id", id)
+      const { error } = await supabase.from("vocabulary").delete().eq("id", id);
 
-      if (error) throw error
+      if (error) throw error;
 
-      setVocabulary(vocabulary.filter((v) => v.id !== id))
+      setVocabulary(vocabulary.filter((v) => v.id !== id));
 
       toast({
         title: "Success",
         description: "Vocabulary deleted successfully",
-      })
+      });
     } catch (error) {
-      console.error("Error deleting vocabulary:", error)
+      console.error("Error deleting vocabulary:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to delete vocabulary",
-      })
+      });
     }
-  }
+  };
 
   const handleGenerateExamples = async () => {
-    if (!newVocab.word) return
+    if (!newVocab.word) return;
 
-    setIsGeneratingExamples(true)
+    setIsGeneratingExamples(true);
     try {
-      const examples = await generateAIExamples(newVocab.word)
+      const examples = await generateAIExamples(newVocab.word);
       setNewVocab({
         ...newVocab,
         examples: examples,
-      })
+      });
 
       toast({
         title: "Success",
         description: "Examples generated successfully",
-      })
+      });
     } catch (error) {
-      console.error("Error generating examples:", error)
+      console.error("Error generating examples:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to generate examples",
-      })
+      });
     } finally {
-      setIsGeneratingExamples(false)
+      setIsGeneratingExamples(false);
     }
-  }
+  };
 
   const handleGeneratePronunciation = async () => {
-    if (!newVocab.word) return
+    if (!newVocab.word) return;
 
-    setIsGeneratingPronunciation(true)
+    setIsGeneratingPronunciation(true);
     try {
-      const { pronunciation, audioUrl } = await generatePronunciation(newVocab.word)
+      const { pronunciation, audioUrl } = await generatePronunciation(
+        newVocab.word
+      );
       setNewVocab({
         ...newVocab,
         pronunciation,
         audio_url: audioUrl,
-      })
+      });
 
       toast({
         title: "Success",
         description: "Pronunciation generated successfully",
-      })
+      });
     } catch (error) {
-      console.error("Error generating pronunciation:", error)
+      console.error("Error generating pronunciation:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to generate pronunciation",
-      })
+      });
     } finally {
-      setIsGeneratingPronunciation(false)
+      setIsGeneratingPronunciation(false);
     }
-  }
+  };
 
   const handleGenerateVocabulary = async () => {
-    setIsLoading(true)
+    setIsGeneratingVocabulary(true);
     try {
-      // In a real app, this would call the AI service to generate vocabulary
-      // For now, we'll just simulate a delay
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Call the AI service to generate vocabulary
+      const generatedWords = await generateVocabularyWithAI(
+        generateParams.level,
+        generateParams.count,
+        generateParams.topic || undefined
+      );
 
-      // Mock generated vocabulary
-      const newWords = [
-        {
-          id: vocabulary.length + 1,
-          word: "serendipity",
-          cefr: generateParams.level,
-          part_of_speech: "noun",
-          pronunciation: "/ˌser.ənˈdɪp.ə.ti/",
-          definition: "the fact of finding interesting or valuable things by chance",
-          examples: [
-            "It was serendipity that I met my wife at that coffee shop.",
-            "The discovery of penicillin was a case of serendipity.",
-          ],
-          audio_url: "",
-          created_at: new Date().toISOString(),
-          created_by: 1,
-        },
-        {
-          id: vocabulary.length + 2,
-          word: "meticulous",
-          cefr: generateParams.level,
-          part_of_speech: "adjective",
-          pronunciation: "/məˈtɪk.jə.ləs/",
-          definition: "very careful and precise about small details",
-          examples: ["She is meticulous about keeping records.", "The work requires meticulous attention to detail."],
-          audio_url: "",
-          created_at: new Date().toISOString(),
-          created_by: 1,
-        },
-      ]
+      // Get the current user ID from localStorage
+      const userString = localStorage.getItem("user");
+      if (!userString) throw new Error("User not found");
+      const user = JSON.parse(userString);
 
-      setVocabulary([...vocabulary, ...newWords.slice(0, generateParams.count)])
-      setIsGenerateOpen(false)
+      // Format the generated words for insertion into the database
+      const wordsToInsert = generatedWords.map((word) => ({
+        word: word.word,
+        cefr: generateParams.level,
+        part_of_speech: word.part_of_speech,
+        pronunciation: word.pronunciation,
+        definition: word.definition,
+        examples: word.examples,
+        audio_url: "",
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+      }));
+
+      // Insert the generated words into the database
+      const { data, error } = await supabase
+        .from("vocabulary")
+        .insert(wordsToInsert)
+        .select();
+
+      if (error) throw error;
+
+      // Update the vocabulary state with the new words
+      setVocabulary([...data, ...vocabulary]);
+      setIsGenerateOpen(false);
 
       toast({
         title: "Success",
-        description: "Vocabulary generated successfully",
-      })
+        description: `${data.length} vocabulary words generated successfully`,
+      });
     } catch (error) {
-      console.error("Error generating vocabulary:", error)
+      console.error("Error generating vocabulary:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to generate vocabulary",
-      })
+        description: "Failed to generate vocabulary. Please try again.",
+      });
     } finally {
-      setIsLoading(false)
+      setIsGeneratingVocabulary(false);
     }
-  }
+  };
 
   const playAudio = (audioUrl: string) => {
-    if (!audioUrl) return
+    if (!audioUrl) return;
 
-    const audio = new Audio(audioUrl)
-    audio.play()
-  }
+    const audio = new Audio(audioUrl);
+    audio.play();
+  };
 
   const handlePreview = (vocab: Vocabulary) => {
-    setPreviewVocab(vocab)
-  }
+    setPreviewVocab(vocab);
+  };
 
   const handleAssignToUsers = async (userIds: number[]) => {
-    if (!previewVocab || userIds.length === 0) return
+    if (!previewVocab || userIds.length === 0) return;
 
     try {
       // Create entries in user_vocabulary table
@@ -309,32 +341,39 @@ export function VocabularyManagement() {
         vocabulary_id: previewVocab.id,
         assigned_date: new Date().toISOString().split("T")[0],
         is_learned: false,
-      }))
+      }));
 
       const { error } = await supabase
         .from("user_vocabulary")
-        .upsert(userVocabEntries, { onConflict: "user_id,vocabulary_id" })
+        .upsert(userVocabEntries, { onConflict: "user_id,vocabulary_id" });
 
-      if (error) throw error
+      if (error) throw error;
 
       toast({
         title: "Success",
-        description: `Vocabulary assigned to ${userIds.length} ${userIds.length === 1 ? "user" : "users"}`,
-      })
+        description: `Vocabulary assigned to ${userIds.length} ${
+          userIds.length === 1 ? "user" : "users"
+        }`,
+      });
 
-      setPreviewVocab(null)
+      setPreviewVocab(null);
     } catch (error) {
-      console.error("Error assigning vocabulary:", error)
+      console.error("Error assigning vocabulary:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to assign vocabulary to users",
-      })
+      });
     }
-  }
+  };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="space-y-6"
+    >
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Vocabulary Management</h2>
         <div className="flex gap-2">
@@ -348,7 +387,9 @@ export function VocabularyManagement() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Generate Vocabulary with AI</DialogTitle>
-                <DialogDescription>Generate vocabulary words based on CEFR level and topic.</DialogDescription>
+                <DialogDescription>
+                  Generate vocabulary words based on CEFR level and topic.
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -357,7 +398,9 @@ export function VocabularyManagement() {
                   </Label>
                   <Select
                     value={generateParams.level}
-                    onValueChange={(value) => setGenerateParams({ ...generateParams, level: value })}
+                    onValueChange={(value) =>
+                      setGenerateParams({ ...generateParams, level: value })
+                    }
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Select level" />
@@ -380,7 +423,12 @@ export function VocabularyManagement() {
                     id="count"
                     type="number"
                     value={generateParams.count}
-                    onChange={(e) => setGenerateParams({ ...generateParams, count: Number.parseInt(e.target.value) })}
+                    onChange={(e) =>
+                      setGenerateParams({
+                        ...generateParams,
+                        count: Number.parseInt(e.target.value),
+                      })
+                    }
                     className="col-span-3"
                   />
                 </div>
@@ -391,15 +439,30 @@ export function VocabularyManagement() {
                   <Input
                     id="topic"
                     value={generateParams.topic}
-                    onChange={(e) => setGenerateParams({ ...generateParams, topic: e.target.value })}
+                    onChange={(e) =>
+                      setGenerateParams({
+                        ...generateParams,
+                        topic: e.target.value,
+                      })
+                    }
                     className="col-span-3"
                     placeholder="e.g., Business, Technology, Travel"
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleGenerateVocabulary} disabled={isLoading}>
-                  {isLoading ? "Generating..." : "Generate"}
+                <Button
+                  onClick={handleGenerateVocabulary}
+                  disabled={isGeneratingVocabulary}
+                >
+                  {isGeneratingVocabulary ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                      Generating...
+                    </>
+                  ) : (
+                    "Generate"
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -415,7 +478,9 @@ export function VocabularyManagement() {
             <DialogContent className="max-w-3xl">
               <DialogHeader>
                 <DialogTitle>Add New Vocabulary</DialogTitle>
-                <DialogDescription>Add a new vocabulary word with Oxford dictionary format.</DialogDescription>
+                <DialogDescription>
+                  Add a new vocabulary word with Oxford dictionary format.
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -425,7 +490,9 @@ export function VocabularyManagement() {
                   <Input
                     id="word"
                     value={newVocab.word}
-                    onChange={(e) => setNewVocab({ ...newVocab, word: e.target.value })}
+                    onChange={(e) =>
+                      setNewVocab({ ...newVocab, word: e.target.value })
+                    }
                     className="col-span-3"
                   />
                 </div>
@@ -433,7 +500,12 @@ export function VocabularyManagement() {
                   <Label htmlFor="cefr" className="text-right">
                     CEFR Level
                   </Label>
-                  <Select value={newVocab.cefr} onValueChange={(value) => setNewVocab({ ...newVocab, cefr: value })}>
+                  <Select
+                    value={newVocab.cefr}
+                    onValueChange={(value) =>
+                      setNewVocab({ ...newVocab, cefr: value })
+                    }
+                  >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Select level" />
                     </SelectTrigger>
@@ -453,7 +525,9 @@ export function VocabularyManagement() {
                   </Label>
                   <Select
                     value={newVocab.part_of_speech}
-                    onValueChange={(value) => setNewVocab({ ...newVocab, part_of_speech: value })}
+                    onValueChange={(value) =>
+                      setNewVocab({ ...newVocab, part_of_speech: value })
+                    }
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Select part of speech" />
@@ -478,7 +552,12 @@ export function VocabularyManagement() {
                     <Input
                       id="pronunciation"
                       value={newVocab.pronunciation}
-                      onChange={(e) => setNewVocab({ ...newVocab, pronunciation: e.target.value })}
+                      onChange={(e) =>
+                        setNewVocab({
+                          ...newVocab,
+                          pronunciation: e.target.value,
+                        })
+                      }
                       className="flex-1"
                       placeholder="/ˈprəʊnʌnsɪeɪʃ(ə)n/"
                     />
@@ -497,7 +576,12 @@ export function VocabularyManagement() {
                       <span className="sr-only">Generate Pronunciation</span>
                     </Button>
                     {newVocab.audio_url && (
-                      <Button type="button" variant="outline" size="icon" onClick={() => playAudio(newVocab.audio_url)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => playAudio(newVocab.audio_url)}
+                      >
                         <Volume2 className="h-4 w-4" />
                         <span className="sr-only">Play Pronunciation</span>
                       </Button>
@@ -511,7 +595,9 @@ export function VocabularyManagement() {
                   <Textarea
                     id="definition"
                     value={newVocab.definition}
-                    onChange={(e) => setNewVocab({ ...newVocab, definition: e.target.value })}
+                    onChange={(e) =>
+                      setNewVocab({ ...newVocab, definition: e.target.value })
+                    }
                     className="col-span-3"
                   />
                 </div>
@@ -522,12 +608,19 @@ export function VocabularyManagement() {
                       <Textarea
                         key={index}
                         value={example}
-                        onChange={(e) => handleExampleChange(index, e.target.value)}
+                        onChange={(e) =>
+                          handleExampleChange(index, e.target.value)
+                        }
                         placeholder={`Example sentence ${index + 1}`}
                       />
                     ))}
                     <div className="flex justify-between">
-                      <Button type="button" variant="outline" size="sm" onClick={handleAddExample}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddExample}
+                      >
                         Add Example
                       </Button>
                       <Button
@@ -559,7 +652,9 @@ export function VocabularyManagement() {
       <Card>
         <CardHeader>
           <CardTitle>Vocabulary List</CardTitle>
-          <CardDescription>Manage vocabulary words and assign them to users.</CardDescription>
+          <CardDescription>
+            Manage vocabulary words and assign them to users.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -584,7 +679,9 @@ export function VocabularyManagement() {
                     <TableCell className="font-medium">{vocab.word}</TableCell>
                     <TableCell>{vocab.cefr}</TableCell>
                     <TableCell>{vocab.part_of_speech}</TableCell>
-                    <TableCell className="max-w-xs truncate">{vocab.definition}</TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {vocab.definition}
+                    </TableCell>
                     <TableCell className="flex items-center gap-2">
                       {vocab.pronunciation}
                       {vocab.audio_url && (
@@ -601,7 +698,11 @@ export function VocabularyManagement() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handlePreview(vocab)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handlePreview(vocab)}
+                        >
                           <Eye className="h-4 w-4" />
                           <span className="sr-only">Preview</span>
                         </Button>
@@ -609,7 +710,11 @@ export function VocabularyManagement() {
                           <Edit className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteVocab(vocab.id)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteVocab(vocab.id)}
+                        >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete</span>
                         </Button>
@@ -633,6 +738,5 @@ export function VocabularyManagement() {
         />
       )}
     </motion.div>
-  )
+  );
 }
-
